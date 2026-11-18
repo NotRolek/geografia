@@ -1,0 +1,1821 @@
+<!doctype html>
+<html lang="pl">
+	<head>
+		<meta charset="UTF-8" />
+		<meta
+			name="viewport"
+			content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+		/>
+
+		<!-- Optymalizacja pod Androida i PWA -->
+		<meta name="theme-color" content="#0f172a" />
+		<meta name="mobile-web-app-capable" content="yes" />
+		<meta name="apple-mobile-web-app-capable" content="yes" />
+		<meta
+			name="apple-mobile-web-app-status-bar-style"
+			content="black-translucent"
+		/>
+		<link
+			rel="manifest"
+			href="data:application/manifest+json;base64,eyJuYW1lIjoiQXNpYSBDaGFsbGVuZ2UiLCJzaG9ydF9uYW1lIjoiQXNpYSIsImRpc3BsYXkiOiJzdGFuZGFsb25lIiwiYmFja2dyb3VuZF9jb2xvciI6IiMxMjEyMTIiLCJ0aGVtZV9jb2xvciI6IiMwZjE3MmEiLCJvcmllbnRhdGlvbiI6ImxhbmRzY2FwZSJ9"
+		/>
+
+		<title>Azja</title>
+
+		<!-- Tailwind CSS -->
+		<script src="https://cdn.tailwindcss.com"></script>
+
+		<!-- Leaflet CSS & JS -->
+		<link
+			rel="stylesheet"
+			href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+			integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+			crossorigin=""
+		/>
+		<script
+			src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+			integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+			crossorigin=""
+		></script>
+
+		<!-- Google Fonts -->
+		<link
+			href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800;900&display=swap"
+			rel="stylesheet"
+		/>
+
+		<style>
+			body {
+				font-family: 'Outfit', sans-serif;
+				margin: 0;
+				padding: 0;
+				background-color: #121212;
+				overflow: hidden;
+				-webkit-tap-highlight-color: transparent;
+				user-select: none; /* Zapobiega przypadkowemu zaznaczaniu tekstu przy szybkim klikaniu na telefonie */
+				-webkit-user-select: none;
+			}
+
+			#map {
+				position: fixed;
+				top: 0;
+				left: 0;
+				width: 100vw;
+				height: 100vh;
+				z-index: 1;
+				background-color: #121212;
+				cursor: crosshair;
+			}
+
+			/* Nowoczesne kontrolki Leafleta ala GeoGuessr */
+			.leaflet-control-zoom {
+				border: none !important;
+				box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.5) !important;
+				border-radius: 8px !important;
+				overflow: hidden;
+				margin-bottom: 24px !important;
+				margin-right: 24px !important;
+			}
+			.leaflet-control-zoom a {
+				background-color: #1e293b !important;
+				color: #f8fafc !important;
+				border-bottom: 1px solid #334155 !important;
+				width: 36px !important;
+				height: 36px !important;
+				line-height: 36px !important;
+				font-weight: bold !important;
+				transition: background-color 0.2s;
+			}
+			.leaflet-control-zoom a:hover {
+				background-color: #334155 !important;
+				color: #38bdf8 !important;
+			}
+			.leaflet-control-attribution {
+				background-color: rgba(15, 23, 42, 0.8) !important;
+				backdrop-filter: blur(4px);
+				border-top-left-radius: 8px;
+				font-size: 10px !important;
+				color: #94a3b8 !important;
+				padding: 2px 8px !important;
+			}
+			.leaflet-control-attribution a {
+				color: #38bdf8 !important;
+			}
+
+			/* Warstwy UI */
+			.ui-layer {
+				position: relative;
+				z-index: 10;
+			}
+
+			/* Karty w stylu gry */
+			.game-card {
+				background: linear-gradient(145deg, #1e293b, #0f172a);
+				border: 1px solid #334155;
+				box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+			}
+			.menu-card {
+				background: #1e293b;
+				border: 2px solid transparent;
+				transition: all 0.2s ease-in-out;
+			}
+			.menu-card:hover {
+				transform: translateY(-4px);
+				border-color: #38bdf8;
+				box-shadow: 0 10px 25px rgba(56, 189, 248, 0.15);
+				background: #233147;
+			}
+
+			/* Etykiety na mapie */
+			.study-label {
+				background: #0f172a;
+				border: 1px solid #334155;
+				color: #f8fafc;
+				font-weight: 800;
+				border-radius: 4px;
+				padding: 2px 6px;
+				font-size: 11px;
+				text-transform: uppercase;
+				letter-spacing: 0.05em;
+				box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5);
+			}
+
+			.fade-enter {
+				opacity: 0;
+				transform: translateY(10px);
+			}
+			.fade-enter-active {
+				opacity: 1;
+				transform: translateY(0);
+				transition: all 0.3s ease;
+			}
+			.fade-exit {
+				opacity: 1;
+				transform: translateY(0);
+				pointer-events: none;
+			}
+			.fade-exit-active {
+				opacity: 0;
+				transform: translateY(-10px);
+				transition: all 0.3s ease;
+				pointer-events: none;
+			}
+
+			@keyframes pop-in {
+				0% {
+					transform: scale(0.5);
+					opacity: 0;
+				}
+				70% {
+					transform: scale(1.1);
+					opacity: 1;
+				}
+				100% {
+					transform: scale(1);
+					opacity: 1;
+				}
+			}
+			.animate-pop {
+				animation: pop-in 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+			}
+		</style>
+	</head>
+	<body>
+		<!-- MAPA -->
+		<div id="map"></div>
+
+		<!-- WATERMARK -->
+		<div
+			class="fixed bottom-2 left-2 z-[1000] text-[9px] md:text-xs font-black text-white/40 uppercase tracking-[0.2em] pointer-events-none ui-layer drop-shadow-lg"
+		>
+			MADE BY SUSEK
+		</div>
+
+		<!-- Niestandardowy przycisk Reset View -->
+		<div
+			id="map-controls"
+			class="fixed bottom-[108px] right-6 z-[1000] hidden ui-layer"
+		>
+			<button
+				onclick="resetMapView()"
+				class="w-[36px] h-[36px] bg-slate-800 text-white rounded-lg shadow-lg border border-slate-700 hover:bg-slate-700 flex items-center justify-center transition-colors"
+				title="Resetuj widok"
+			>
+				<svg
+					class="w-5 h-5"
+					fill="none"
+					stroke="currentColor"
+					viewBox="0 0 24 24"
+				>
+					<path
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						stroke-width="2"
+						d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+					></path>
+				</svg>
+			</button>
+		</div>
+
+		<!-- HUD ROZGRYWKI -->
+		<div
+			id="game-ui"
+			class="fixed inset-0 pointer-events-none hidden ui-layer flex-col"
+		>
+			<!-- Górny pasek -->
+			<div
+				class="pointer-events-auto bg-slate-900/95 border-b border-slate-800 px-3 md:px-4 py-2 md:py-3 flex justify-between items-center shadow-xl"
+			>
+				<div class="flex items-center gap-2 md:gap-3">
+					<div
+						class="font-black text-lg md:text-2xl tracking-widest text-white italic"
+					>
+						ASIA<span class="text-blue-500">CHALLENGE</span>
+					</div>
+					<div
+						id="mode-badge"
+						class="hidden md:block bg-slate-800 text-slate-300 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-widest"
+					>
+						TEST
+					</div>
+				</div>
+
+				<!-- Filtry nauki (tylko w trybie nauki) -->
+				<div
+					id="study-filters"
+					class="hidden items-center gap-3 md:gap-4 text-[10px] md:text-xs font-bold uppercase tracking-wider flex-wrap justify-center"
+				>
+					<label
+						class="flex items-center gap-1 md:gap-1.5 cursor-pointer hover:text-green-400 transition-colors text-slate-300"
+						><input
+							type="checkbox"
+							checked
+							onchange="toggleCategory('nizina')"
+							class="accent-green-500 w-3 h-3 md:w-4 md:h-4"
+						/>
+						Niziny</label
+					>
+					<label
+						class="flex items-center gap-1 md:gap-1.5 cursor-pointer hover:text-orange-400 transition-colors text-slate-300"
+						><input
+							type="checkbox"
+							checked
+							onchange="toggleCategory('wyzyna')"
+							class="accent-orange-500 w-3 h-3 md:w-4 md:h-4"
+						/>
+						Wyżyny</label
+					>
+					<label
+						class="flex items-center gap-1 md:gap-1.5 cursor-pointer hover:text-red-400 transition-colors text-slate-300"
+						><input
+							type="checkbox"
+							checked
+							onchange="toggleCategory('gory')"
+							class="accent-red-500 w-3 h-3 md:w-4 md:h-4"
+						/>
+						Góry</label
+					>
+				</div>
+
+				<!-- Statystyki -->
+				<div id="stats-panel" class="flex gap-3 md:gap-8 items-center">
+					<div class="flex flex-col items-end md:items-center">
+						<span
+							class="text-[8px] md:text-[9px] uppercase font-bold text-slate-500 tracking-widest"
+							>Czas</span
+						>
+						<span
+							id="hud-time"
+							class="text-base md:text-xl font-black text-emerald-400 leading-none"
+							>00:00</span
+						>
+					</div>
+					<div class="flex flex-col items-end md:items-center">
+						<span
+							class="text-[8px] md:text-[9px] uppercase font-bold text-slate-500 tracking-widest"
+							>Runda</span
+						>
+						<span
+							id="progress-text"
+							class="text-base md:text-xl font-black text-white leading-none"
+							>1/23</span
+						>
+					</div>
+					<div class="flex flex-col items-end md:items-center">
+						<span
+							class="text-[8px] md:text-[9px] uppercase font-bold text-slate-500 tracking-widest"
+							>Wynik</span
+						>
+						<span
+							id="score-text"
+							class="text-base md:text-xl font-black text-blue-400 leading-none"
+							>0</span
+						>
+					</div>
+				</div>
+
+				<button
+					onclick="endGame(true)"
+					class="pointer-events-auto bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1.5 md:px-4 md:py-2 rounded-lg font-bold text-xs md:text-sm transition-colors uppercase tracking-wider ml-2 md:ml-0 border border-slate-700"
+				>
+					Wyjście
+				</button>
+			</div>
+
+			<!-- Panel Pytania -->
+			<div
+				id="prompt-container"
+				class="pointer-events-auto mx-auto mt-4 md:mt-6 game-card px-4 md:px-8 py-3 md:py-5 rounded-xl md:rounded-2xl text-center transform transition-transform border border-slate-700 w-11/12 md:w-auto max-w-lg"
+			>
+				<p
+					class="text-[9px] md:text-[10px] font-black text-blue-500 uppercase tracking-[0.2em] mb-1 md:mb-1"
+				>
+					Znajdź na mapie
+				</p>
+				<h2
+					id="question-text"
+					class="text-2xl md:text-5xl font-black text-white tracking-tight uppercase"
+				>
+					Himalaje
+				</h2>
+				<div
+					id="attempts-container"
+					class="flex justify-center gap-1.5 md:gap-2 mt-2 md:mt-4"
+				>
+					<div
+						class="w-6 md:w-8 h-1.5 rounded-full bg-slate-700 attempt-dot transition-colors"
+					></div>
+					<div
+						class="w-6 md:w-8 h-1.5 rounded-full bg-slate-700 attempt-dot transition-colors"
+					></div>
+					<div
+						class="w-6 md:w-8 h-1.5 rounded-full bg-slate-700 attempt-dot transition-colors"
+					></div>
+				</div>
+			</div>
+		</div>
+
+		<!-- FEEDBACK (DOBRZE / ŹLE) -->
+		<div
+			id="feedback-overlay"
+			class="fixed inset-0 z-50 flex items-center justify-center pointer-events-none hidden"
+		>
+			<div
+				id="feedback-text"
+				class="text-6xl md:text-9xl font-black uppercase italic tracking-tighter drop-shadow-[0_10px_10px_rgba(0,0,0,0.8)] transform scale-50 opacity-0 transition-all duration-300"
+			></div>
+		</div>
+
+		<!-- MENU GŁÓWNE -->
+		<div
+			id="main-menu"
+			class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/90 backdrop-blur-sm p-4 fade-enter-active ui-layer overflow-y-auto"
+		>
+			<div class="w-full max-w-4xl my-auto py-8">
+				<div class="text-center mb-8 md:mb-12">
+					<h1
+						class="text-4xl md:text-7xl font-black text-white italic tracking-tighter drop-shadow-lg"
+					>
+						ASIA<span class="text-blue-500">CHALLENGE</span>
+					</h1>
+					<p
+						class="text-slate-400 font-semibold tracking-widest uppercase mt-2 text-xs md:text-sm"
+					>
+						Geograficzna Gra Edukacyjna
+					</p>
+				</div>
+
+				<div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+					<!-- LEARN MODE -->
+					<button
+						onclick="startGame('study')"
+						class="menu-card rounded-xl md:rounded-2xl p-5 md:p-6 text-left group relative overflow-hidden"
+					>
+						<div
+							class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity"
+						>
+							<svg
+								class="w-16 h-16 md:w-24 md:h-24 text-white"
+								fill="currentColor"
+								viewBox="0 0 20 20"
+							>
+								<path
+									d="M10.394 2.08a1 1 0 00-.788 0l-7 3a1 1 0 000 1.84L5.25 8.051a.999.999 0 01.356-.257l4-1.714a1 1 0 11.788 1.838L7.667 9.088l1.94.831a1 1 0 00.787 0l7-3a1 1 0 000-1.838l-7-3zM3.31 9.397L5 10.12v4.102a8.969 8.969 0 00-1.05-.174 1 1 0 01-.89-.89 11.115 11.115 0 01.25-3.762zM9.3 16.573A9.026 9.026 0 007 14.935v-3.957l1.818.78a3 3 0 002.364 0l5.508-2.361a11.026 11.026 0 01.25 3.762 1 1 0 01-.89.89 8.968 8.968 0 00-5.35 2.524 1 1 0 01-1.4 0zM6 18a1 1 0 001-1v-2.065a8.935 8.935 0 00-2-.712V17a1 1 0 001 1z"
+								></path>
+							</svg>
+						</div>
+						<h3
+							class="text-lg md:text-xl font-black text-white uppercase tracking-wider mb-2 relative z-10"
+						>
+							Tryb Nauki
+						</h3>
+						<p
+							class="text-slate-400 text-xs md:text-sm font-medium leading-relaxed mb-4 md:mb-6 relative z-10"
+						>
+							Przeglądaj mapę bez stresu. Wszystkie 23 obiekty są widoczne wraz
+							z opisami. Idealne do zapamiętywania przed testem.
+						</p>
+						<div
+							class="inline-block bg-slate-800 text-white font-bold uppercase tracking-wider text-[10px] md:text-xs px-3 md:px-4 py-2 rounded-lg group-hover:bg-blue-500 transition-colors relative z-10"
+						>
+							Eksploruj
+						</div>
+					</button>
+
+					<!-- CHALLENGE MODE -->
+					<button
+						onclick="startGame('test')"
+						class="menu-card rounded-xl md:rounded-2xl p-5 md:p-6 text-left group relative overflow-hidden border-blue-500/30"
+					>
+						<div
+							class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity"
+						>
+							<svg
+								class="w-16 h-16 md:w-24 md:h-24 text-white"
+								fill="currentColor"
+								viewBox="0 0 20 20"
+							>
+								<path
+									fill-rule="evenodd"
+									d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+									clip-rule="evenodd"
+								></path>
+							</svg>
+						</div>
+						<h3
+							class="text-lg md:text-xl font-black text-white uppercase tracking-wider mb-2 relative z-10"
+						>
+							Test Wiedzy
+						</h3>
+						<p
+							class="text-slate-400 text-xs md:text-sm font-medium leading-relaxed mb-4 md:mb-6 relative z-10"
+						>
+							Podejmij wyzwanie. Obiekty pojawiają się losowo. Zaznaczaj je na
+							mapie tak precyzyjnie, jak potrafisz. Zbieraj punkty.
+						</p>
+						<div
+							class="inline-block bg-blue-600 text-white font-bold uppercase tracking-wider text-[10px] md:text-xs px-3 md:px-4 py-2 rounded-lg group-hover:bg-blue-500 transition-colors shadow-lg shadow-blue-500/30 relative z-10"
+						>
+							Graj Teraz
+						</div>
+					</button>
+
+					<!-- REVIEW MODE -->
+					<button
+						id="btn-review"
+						onclick="startGame('review')"
+						disabled
+						class="menu-card rounded-xl md:rounded-2xl p-5 md:p-6 text-left group relative overflow-hidden opacity-50 cursor-not-allowed"
+					>
+						<div
+							class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity"
+						>
+							<svg
+								class="w-16 h-16 md:w-24 md:h-24 text-white"
+								fill="currentColor"
+								viewBox="0 0 20 20"
+							>
+								<path
+									fill-rule="evenodd"
+									d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z"
+									clip-rule="evenodd"
+								></path>
+							</svg>
+						</div>
+						<h3
+							class="text-lg md:text-xl font-black text-white uppercase tracking-wider mb-2 relative z-10"
+						>
+							Powtórka
+						</h3>
+						<p
+							id="review-desc"
+							class="text-slate-400 text-xs md:text-sm font-medium leading-relaxed mb-4 md:mb-6 relative z-10"
+						>
+							Rozwiąż test, aby odblokować możliwość powtórzenia błędnie
+							zaznaczonych krain.
+						</p>
+						<div
+							class="inline-block bg-slate-800 text-slate-400 font-bold uppercase tracking-wider text-[10px] md:text-xs px-3 md:px-4 py-2 rounded-lg transition-colors relative z-10"
+						>
+							Niedostępne
+						</div>
+					</button>
+				</div>
+
+				<div class="mt-8 md:mt-12 text-center">
+					<p
+						class="text-slate-600 text-[10px] md:text-xs font-bold uppercase tracking-[0.3em]"
+					>
+						Made by susek
+					</p>
+				</div>
+			</div>
+		</div>
+
+		<!-- EKRAN KOŃCOWY -->
+		<div
+			id="end-screen"
+			class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/95 backdrop-blur-md p-4 hidden ui-layer fade-exit overflow-y-auto"
+		>
+			<div
+				class="w-full max-w-2xl bg-slate-900 border border-slate-700 rounded-2xl md:rounded-3xl p-6 md:p-12 shadow-2xl my-8"
+			>
+				<div class="text-center mb-6 md:mb-8">
+					<p
+						id="end-subtitle"
+						class="text-blue-500 text-xs md:text-sm font-bold uppercase tracking-[0.2em] mb-1 md:mb-2"
+					>
+						PODSUMOWANIE
+					</p>
+					<h2
+						id="end-title"
+						class="text-4xl md:text-6xl font-black text-white italic tracking-tighter"
+					>
+						KONIEC GRY
+					</h2>
+				</div>
+
+				<div class="flex flex-col md:flex-row gap-4 md:gap-6 mb-8 md:mb-10">
+					<div
+						class="flex-1 bg-slate-800 rounded-xl md:rounded-2xl p-4 md:p-6 text-center border border-slate-700"
+					>
+						<p
+							class="text-slate-400 text-[10px] md:text-xs font-bold uppercase tracking-wider mb-1 md:mb-2"
+						>
+							Wynik Końcowy
+						</p>
+						<div
+							id="end-score"
+							class="text-4xl md:text-6xl font-black text-white tracking-tighter"
+						>
+							0<span class="text-xl md:text-2xl text-slate-500">/23</span>
+						</div>
+					</div>
+					<div
+						class="flex-1 bg-slate-800 rounded-xl md:rounded-2xl p-4 md:p-6 text-center border border-slate-700"
+					>
+						<p
+							class="text-slate-400 text-[10px] md:text-xs font-bold uppercase tracking-wider mb-1 md:mb-2"
+						>
+							Skuteczność
+						</p>
+						<div
+							id="end-percentage"
+							class="text-4xl md:text-6xl font-black text-blue-400 tracking-tighter"
+						>
+							0%
+						</div>
+					</div>
+					<div
+						class="flex-1 bg-slate-800 rounded-xl md:rounded-2xl p-4 md:p-6 text-center border border-slate-700"
+					>
+						<p
+							class="text-slate-400 text-[10px] md:text-xs font-bold uppercase tracking-wider mb-1 md:mb-2"
+						>
+							Czas Gry
+						</p>
+						<div
+							id="end-time"
+							class="text-3xl md:text-4xl font-black text-emerald-400 tracking-tighter mt-1 md:mt-3"
+						>
+							00:00
+						</div>
+					</div>
+				</div>
+
+				<div id="mistakes-section" class="mb-8 md:mb-10 hidden">
+					<h3
+						class="text-white font-bold text-sm md:text-lg mb-3 md:mb-4 border-b border-slate-700 pb-2"
+					>
+						Krainy do powtórzenia:
+					</h3>
+					<ul
+						id="mistakes-list"
+						class="grid grid-cols-1 md:grid-cols-2 gap-2 text-slate-300 text-xs md:text-sm"
+					>
+						<!-- Elementy generowane dynamicznie -->
+					</ul>
+				</div>
+
+				<div class="flex flex-col md:flex-row gap-3 md:gap-4">
+					<button
+						onclick="showMenu()"
+						class="flex-1 bg-slate-800 hover:bg-slate-700 text-white font-bold uppercase tracking-wider py-3 md:py-4 text-sm md:text-base rounded-lg md:rounded-xl transition-colors border border-slate-600"
+					>
+						Wróć do Menu
+					</button>
+					<button
+						id="end-btn-review"
+						onclick="startGame('review')"
+						class="hidden flex-1 bg-orange-600 hover:bg-orange-500 text-white font-bold uppercase tracking-wider py-3 md:py-4 text-sm md:text-base rounded-lg md:rounded-xl transition-colors shadow-lg shadow-orange-600/20"
+					>
+						Powtórz błędy
+					</button>
+				</div>
+			</div>
+		</div>
+
+		<script>
+			// Dane obiektów geograficznych (Kategorie, dokładniejsze współrzędne środka i rzeczywiste wielokąty - orientacyjne granice)
+			const ALL_LOCATIONS = [
+				{
+					id: 1,
+					name: 'Nizina Zachodniosyberyjska',
+					center: [62.0, 76.0],
+					type: 'nizina',
+					desc: 'Ogromna, płaska nizina w Rosji.',
+					polygon: [
+						[73, 68],
+						[72.5, 72],
+						[73, 75],
+						[72.8, 80],
+						[71, 83],
+						[69, 85],
+						[68, 86],
+						[66, 88],
+						[63, 90],
+						[60, 90],
+						[58, 88],
+						[56, 85],
+						[54, 83],
+						[53, 80],
+						[52.5, 77],
+						[53, 72],
+						[54, 68],
+						[55, 65],
+						[56.5, 62],
+						[58, 61],
+						[60, 60.5],
+						[62, 60],
+						[64, 60.5],
+						[66, 61],
+						[68, 63],
+						[70, 65],
+						[71.5, 67]
+					]
+				},
+				{
+					id: 2,
+					name: 'Nizina Turańska',
+					center: [43.0, 60.0],
+					type: 'nizina',
+					desc: 'Rozległa nizina w Azji Środkowej, obejmuje pustynie.',
+					polygon: [
+						[46.5, 52],
+						[47, 54],
+						[47.5, 57],
+						[47, 61],
+						[46.5, 63],
+						[46, 65],
+						[45, 67],
+						[44, 68],
+						[43, 69],
+						[42, 69],
+						[41, 68.5],
+						[40, 68],
+						[39, 66],
+						[38.5, 64],
+						[37.5, 62],
+						[37, 60],
+						[37.5, 57],
+						[38, 55],
+						[39, 54],
+						[40, 54],
+						[41.5, 53.5],
+						[43, 53],
+						[44, 52.5],
+						[45, 52]
+					]
+				},
+				{
+					id: 3,
+					name: 'Kaukaz',
+					center: [42.5, 45.0],
+					type: 'gory',
+					desc: 'Łańcuch górski między Morzem Czarnym a Kaspijskim.',
+					polygon: [
+						[44.8, 37.5],
+						[44.5, 38.2],
+						[44.2, 39],
+						[43.8, 40.5],
+						[43.3, 41.5],
+						[42.9, 42.5],
+						[42.5, 43.5],
+						[42.1, 44.8],
+						[41.7, 46],
+						[41.3, 47.2],
+						[41, 48],
+						[40.6, 49],
+						[40.2, 49.5],
+						[40.5, 48.8],
+						[40.8, 48],
+						[41.2, 46.5],
+						[41.5, 45],
+						[41.8, 44],
+						[42.2, 43],
+						[42.6, 41.5],
+						[43, 40],
+						[43.4, 39],
+						[43.8, 38],
+						[44.1, 37.5],
+						[44.3, 37]
+					]
+				},
+				{
+					id: 4,
+					name: 'Taurus',
+					center: [37.0, 33.0],
+					type: 'gory',
+					desc: 'Pasma górskie w południowej Turcji.',
+					polygon: [
+						[37.2, 27],
+						[37.3, 28.5],
+						[37.5, 30],
+						[37.4, 31.5],
+						[37.2, 33],
+						[37.3, 34.5],
+						[37.5, 36],
+						[37.8, 37],
+						[38, 38],
+						[37.6, 38.3],
+						[37.2, 38.2],
+						[36.9, 37.5],
+						[36.7, 36],
+						[36.5, 34.5],
+						[36.2, 33],
+						[36.3, 31.5],
+						[36.5, 30],
+						[36.5, 28.5],
+						[36.6, 27],
+						[36.9, 26.8]
+					]
+				},
+				{
+					id: 5,
+					name: 'Nizina Mezopotamska',
+					center: [32.0, 46.0],
+					type: 'nizina',
+					desc: 'Nizina w dolinach rzek Eufrat i Tygrys.',
+					polygon: [
+						[34, 43],
+						[34.5, 43.5],
+						[35, 44],
+						[34, 45],
+						[33, 46],
+						[32, 46.8],
+						[31, 47.5],
+						[30.5, 48.2],
+						[30, 48.5],
+						[29.8, 48.3],
+						[29.5, 48],
+						[29.7, 47.5],
+						[30, 47],
+						[30.5, 46],
+						[31, 45],
+						[31.8, 44],
+						[32.5, 43],
+						[33, 42.6],
+						[33.5, 42.5],
+						[33.8, 42.7]
+					]
+				},
+				{
+					id: 6,
+					name: 'Wyżyna Irańska',
+					center: [33.0, 54.0],
+					type: 'wyzyna',
+					desc: 'Rozległa wyżyna w Azji Południowo-Zachodniej.',
+					polygon: [
+						[37, 50],
+						[37.5, 52],
+						[38, 55],
+						[37.8, 58],
+						[37, 60],
+						[36, 61.5],
+						[35, 62],
+						[33.5, 63],
+						[32, 64],
+						[30, 63.5],
+						[28, 62],
+						[27, 60.5],
+						[26, 59],
+						[26.5, 57],
+						[27, 55],
+						[28, 53.5],
+						[29, 52],
+						[30.5, 51],
+						[32, 50],
+						[34, 49.5],
+						[35, 49],
+						[36, 49.5]
+					]
+				},
+				{
+					id: 7,
+					name: 'Nizina Nadkaspijska',
+					center: [47.0, 50.0],
+					type: 'nizina',
+					desc: 'Rozległa depresja wokół północnych wybrzeży Morza Kaspijskiego.',
+					polygon: [
+						[47, 46],
+						[47.8, 46.2],
+						[48.5, 46.5],
+						[49.2, 47.2],
+						[50, 48],
+						[50.6, 49.5],
+						[51, 51],
+						[50.8, 52.5],
+						[50, 54],
+						[48.5, 54.8],
+						[47, 55],
+						[46, 54.8],
+						[45, 54],
+						[44.5, 52.5],
+						[44, 51],
+						[44.5, 49.5],
+						[45, 48],
+						[45.8, 47.2],
+						[46, 47],
+						[46.5, 46.3]
+					]
+				},
+				{
+					id: 8,
+					name: 'Wyżyna Dekan',
+					center: [17.0, 77.0],
+					type: 'wyzyna',
+					desc: 'Wyżyna zajmująca większą część Półwyspu Indyjskiego.',
+					polygon: [
+						[21, 74],
+						[21.5, 76],
+						[22, 78],
+						[21.5, 79],
+						[20, 80],
+						[18.5, 79.8],
+						[17, 79],
+						[15, 78.5],
+						[13, 78],
+						[11.5, 77.5],
+						[10.5, 77],
+						[11.5, 76.5],
+						[13, 76],
+						[15, 75.5],
+						[17, 75],
+						[19, 74],
+						[20, 73.8]
+					]
+				},
+				{
+					id: 9,
+					name: 'Nizina Indusu',
+					center: [27.0, 68.0],
+					type: 'nizina',
+					desc: 'Nizina aluwialna położona wokół rzeki Indus.',
+					polygon: [
+						[33, 71],
+						[33.5, 72],
+						[34, 73],
+						[32.5, 73.5],
+						[31, 74],
+						[30, 73.5],
+						[29, 72],
+						[27.5, 70.5],
+						[26, 69],
+						[25, 68],
+						[24, 67],
+						[23.5, 67.5],
+						[24, 68.5],
+						[25, 69.5],
+						[26, 70.5],
+						[27.5, 72],
+						[29, 73.5],
+						[30.5, 74],
+						[32, 74.5]
+					]
+				},
+				{
+					id: 10,
+					name: 'Nizina Gangesu',
+					center: [26.0, 82.0],
+					type: 'nizina',
+					desc: 'Gęsto zaludniona, żyzna nizina w północnych Indiach i Bangladeszu.',
+					polygon: [
+						[30, 77],
+						[30.2, 78],
+						[30.5, 79],
+						[29.5, 80.5],
+						[28, 82],
+						[27, 84],
+						[26, 86],
+						[26, 87.5],
+						[26, 89],
+						[25, 89.8],
+						[24, 90],
+						[23, 90.5],
+						[22, 90.5],
+						[22, 89.8],
+						[22, 89],
+						[23, 88.5],
+						[24, 88],
+						[24.5, 86],
+						[25, 84],
+						[26, 82],
+						[27, 80],
+						[27.8, 78.5],
+						[28.5, 77],
+						[29.2, 76.8]
+					]
+				},
+				{
+					id: 11,
+					name: 'Wyżyna Tybetańska',
+					center: [33.0, 88.0],
+					type: 'wyzyna',
+					desc: 'Najwyżej położona i największa wyżyna na Ziemi.',
+					polygon: [
+						[36, 78],
+						[37, 80],
+						[38, 82],
+						[38.5, 85],
+						[39, 88],
+						[39.2, 91],
+						[39, 95],
+						[38, 97],
+						[36, 99],
+						[34, 98.5],
+						[32, 98],
+						[31, 96.5],
+						[30, 95],
+						[29.8, 91.5],
+						[29.5, 88],
+						[30, 85],
+						[30.5, 82],
+						[31.2, 80.5],
+						[32, 79],
+						[34, 78.2]
+					]
+				},
+				{
+					id: 12,
+					name: 'Góry Karakorum',
+					center: [35.5, 76.5],
+					type: 'gory',
+					desc: 'Niezwykle wysokie pasmo górskie, tu znajduje się szczyt K2.',
+					polygon: [
+						[36.5, 74],
+						[36.2, 75],
+						[36, 76],
+						[35.8, 77],
+						[35.5, 78],
+						[35, 78.5],
+						[34.5, 79],
+						[34.2, 78.5],
+						[34, 78],
+						[34.2, 77],
+						[34.5, 76],
+						[35, 74.8],
+						[35.5, 73.5],
+						[36, 73.2]
+					]
+				},
+				{
+					id: 13,
+					name: 'Ałtaj',
+					center: [49.0, 89.0],
+					type: 'gory',
+					desc: 'System górski na styku Rosji, Chin, Mongolii i Kazachstanu.',
+					polygon: [
+						[52, 82],
+						[52.5, 83.5],
+						[53, 85],
+						[52.2, 87],
+						[51, 89],
+						[50, 91],
+						[48, 93],
+						[47, 92.2],
+						[46, 91],
+						[46.5, 89.5],
+						[47, 88],
+						[48, 86.5],
+						[49, 85],
+						[49.5, 83.5],
+						[50, 82],
+						[51, 81.5]
+					]
+				},
+				{
+					id: 14,
+					name: 'Kunlun',
+					center: [36.0, 84.0],
+					type: 'gory',
+					desc: 'Potężny łańcuch górski odgradzający Wyżynę Tybetańską od północy.',
+					polygon: [
+						[38, 76],
+						[38.5, 78],
+						[39, 80],
+						[39.2, 83],
+						[39, 86],
+						[38.5, 89],
+						[38, 92],
+						[37, 95],
+						[36, 98],
+						[35, 97.5],
+						[34, 97],
+						[34.5, 94.5],
+						[35, 92],
+						[36, 90],
+						[36.5, 87],
+						[36, 84],
+						[35.5, 81],
+						[35, 78],
+						[35.5, 76.5],
+						[36, 75],
+						[37, 75.2]
+					]
+				},
+				{
+					id: 15,
+					name: 'Góry Czerskiego',
+					center: [65.0, 143.0],
+					type: 'gory',
+					desc: 'Góry we wschodniej Syberii.',
+					polygon: [
+						[68, 133],
+						[67.5, 136],
+						[66, 140],
+						[65, 143.5],
+						[64, 147],
+						[63.5, 149],
+						[63, 151],
+						[62.5, 150.2],
+						[62, 149],
+						[62.5, 147],
+						[63, 145],
+						[64, 141],
+						[65, 137],
+						[66, 134.5],
+						[67, 132],
+						[67.6, 131.8]
+					]
+				},
+				{
+					id: 16,
+					name: 'Ghaty Wschodnie',
+					center: [17.0, 81.5],
+					type: 'gory',
+					desc: 'Pasma górskie wzdłuż wschodniego wybrzeża Półwyspu Indyjskiego.',
+					polygon: [
+						[21, 86],
+						[20.5, 85],
+						[19.5, 84],
+						[18, 83],
+						[16.5, 81.5],
+						[15, 80],
+						[13.8, 79],
+						[12.5, 78],
+						[12.8, 77.5],
+						[13.5, 79.5],
+						[14.8, 80.5],
+						[16, 81],
+						[17.5, 82.5],
+						[19, 84],
+						[20.5, 87],
+						[21.2, 87.2]
+					]
+				},
+				{
+					id: 17,
+					name: 'Ghaty Zachodnie',
+					center: [14.0, 74.5],
+					type: 'gory',
+					desc: 'Góry ciągnące się wzdłuż zachodniego wybrzeża Indii.',
+					polygon: [
+						[21, 73.5],
+						[19.5, 73.2],
+						[18, 73],
+						[16, 73.8],
+						[14, 74.5],
+						[12, 75.8],
+						[10, 77],
+						[9, 77.2],
+						[8, 77.5],
+						[8.5, 76.8],
+						[10, 76],
+						[12, 75],
+						[14, 73.5],
+						[16, 73],
+						[18, 72.5],
+						[19.5, 72.3],
+						[20.5, 72.5]
+					]
+				},
+				{
+					id: 18,
+					name: 'Pamir',
+					center: [38.0, 73.0],
+					type: 'gory',
+					desc: 'Wysoki węzeł orograficzny (tzw. Dach Świata) w Azji Centralnej.',
+					polygon: [
+						[40, 71],
+						[40, 72],
+						[39.5, 73],
+						[39, 74],
+						[38.5, 75],
+						[37.8, 74.8],
+						[37, 74.5],
+						[36.5, 73],
+						[36.8, 72],
+						[37, 71],
+						[37.8, 70.8],
+						[38.5, 70.5],
+						[39.2, 70.6]
+					]
+				},
+				{
+					id: 19,
+					name: 'Góry Annamickie',
+					center: [16.0, 107.5],
+					type: 'gory',
+					desc: 'Góry na Półwyspie Indochińskim (Wietnam, Laos).',
+					polygon: [
+						[19, 105],
+						[18.2, 105.8],
+						[17, 106.5],
+						[16, 107],
+						[14.5, 107.8],
+						[13, 108.5],
+						[12, 108.8],
+						[11.5, 108],
+						[12.2, 107.8],
+						[13, 107.5],
+						[14.5, 106.8],
+						[16, 106],
+						[17.2, 105.3],
+						[18, 104.5],
+						[18.6, 104.2]
+					]
+				},
+				{
+					id: 20,
+					name: 'Wyżyna Środkowosyberyjska',
+					center: [65.0, 105.0],
+					type: 'wyzyna',
+					desc: 'Rozległa, pofałdowana wyżyna w azjatyckiej części Rosji.',
+					polygon: [
+						[72, 88],
+						[72.5, 95],
+						[72, 105],
+						[71.5, 110],
+						[70, 115],
+						[67.5, 116.5],
+						[65, 118],
+						[62.5, 116.5],
+						[60, 115],
+						[58, 110],
+						[56, 105],
+						[57, 100],
+						[58, 95],
+						[60, 92],
+						[62, 90],
+						[65, 89],
+						[68, 88],
+						[70, 87.5]
+					]
+				},
+				{
+					id: 21,
+					name: 'Ural',
+					center: [60.0, 60.0],
+					type: 'gory',
+					desc: 'Góry stanowiące tradycyjną granicę między Europą a Azją.',
+					polygon: [
+						[68.5, 66],
+						[67.8, 65.5],
+						[67, 65],
+						[66, 63.5],
+						[65, 62],
+						[64, 61],
+						[63, 60],
+						[61.5, 59.5],
+						[60, 59],
+						[58.5, 58.5],
+						[57, 58],
+						[55.5, 57.8],
+						[54, 58],
+						[52.8, 57.6],
+						[51.5, 57.5],
+						[51.5, 59.5],
+						[52.8, 59.8],
+						[54, 60],
+						[55.5, 60.3],
+						[57, 60.5],
+						[58.5, 60.8],
+						[60, 61],
+						[61.5, 61.8],
+						[63, 62.5],
+						[64, 63.8],
+						[65, 65],
+						[66, 66.5],
+						[67, 67.5],
+						[68.5, 68],
+						[69, 67]
+					]
+				},
+				{
+					id: 22,
+					name: 'Himalaje',
+					center: [28.2, 84.5],
+					type: 'gory',
+					desc: 'Najwyższy łańcuch górski na Ziemi (Mount Everest).',
+					polygon: [
+						[34.5, 74],
+						[33.5, 75.5],
+						[32.5, 77],
+						[31.8, 78],
+						[31, 79],
+						[30.2, 80.2],
+						[29.5, 81.5],
+						[29, 82.8],
+						[28.5, 84],
+						[28.2, 85],
+						[27.8, 86],
+						[27.6, 87.5],
+						[27.5, 89],
+						[27.4, 90.5],
+						[27.5, 92],
+						[28, 93.5],
+						[28.5, 95],
+						[29, 95.8],
+						[29.5, 96],
+						[29, 96.5],
+						[28.5, 96.5],
+						[27.8, 95.5],
+						[27.5, 94],
+						[27, 92.5],
+						[26.5, 91],
+						[26.3, 89.5],
+						[26.5, 88],
+						[26.8, 86.5],
+						[27, 85],
+						[27.5, 83.5],
+						[28, 82],
+						[29, 80.5],
+						[30, 79],
+						[31, 77.5],
+						[32, 76],
+						[33, 75.2],
+						[33.8, 74.5],
+						[34.8, 73.8]
+					]
+				},
+				{
+					id: 23,
+					name: 'Wyżyna Mongolska',
+					center: [45.0, 105.0],
+					type: 'wyzyna',
+					desc: 'Rozległa wyżyna zajmująca znaczne obszary Mongolii i Chin.',
+					polygon: [
+						[49, 90],
+						[49.5, 95],
+						[50, 100],
+						[49.8, 106],
+						[49, 112],
+						[48, 114],
+						[47, 116],
+						[45, 115.5],
+						[43, 115],
+						[41.5, 112.5],
+						[40, 110],
+						[39.5, 105],
+						[40, 100],
+						[41.5, 95],
+						[43, 90],
+						[46, 89.5]
+					]
+				}
+			];
+
+			// Zmienne stanu gry
+			let map;
+			let currentMode = '';
+			let queue = [];
+			let currentIndex = 0;
+			let score = 0;
+			let currentAttempts = 0;
+			let mistakesList = [];
+			let previousMistakes = [];
+			let isWaitingForClick = false;
+
+			// Zmienne timera
+			let timerInterval = null;
+			let elapsedSeconds = 0;
+			let studyMarkers = [];
+			let visibleCategories = { nizina: true, wyzyna: true, gory: true };
+			let activeShapes = [];
+
+			const TYPE_COLORS = {
+				nizina: '#10b981', // emerald-500
+				wyzyna: '#f59e0b', // amber-500
+				gory: '#ef4444' // red-500
+			};
+
+			const COLORS = {
+				0: '#10b981', // emerald
+				1: '#f59e0b', // amber
+				2: '#e11d48' // rose
+			};
+
+			window.onload = function () {
+				initMap();
+			};
+
+			function initMap() {
+				map = L.map('map', {
+					center: [45, 90],
+					zoom: 3,
+					minZoom: 2,
+					maxZoom: 10,
+					maxBounds: [
+						[-20, 20],
+						[90, 180]
+					],
+					maxBoundsViscosity: 1.0,
+					zoomControl: false
+				});
+
+				// Kontrolki zoom na dole z prawej (ala GeoGuessr)
+				L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+				L.tileLayer(
+					'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+					{
+						attribution:
+							'Tiles &copy; <a href="https://www.esri.com/">Esri</a>',
+						maxZoom: 17
+					}
+				).addTo(map);
+
+				map.on('click', handleMapClick);
+			}
+
+			function resetMapView() {
+				map.setView([45, 90], 3, { animate: true, duration: 1 });
+			}
+
+			// Algorytm sprawdzania czy punkt znajduje się w wielokącie (Ray-casting)
+			function isPointInPolygon(point, vs) {
+				let x = point[1],
+					y = point[0]; // lng, lat
+				let inside = false;
+				for (let i = 0, j = vs.length - 1; i < vs.length; j = i++) {
+					let xi = vs[i][1],
+						yi = vs[i][0];
+					let xj = vs[j][1],
+						yj = vs[j][0];
+
+					let intersect =
+						yi > y != yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi;
+					if (intersect) inside = !inside;
+				}
+				return inside;
+			}
+
+			function shuffleArray(array) {
+				let curId = array.length;
+				while (0 !== curId) {
+					let randId = Math.floor(Math.random() * curId);
+					curId -= 1;
+					let tmp = array[curId];
+					array[curId] = array[randId];
+					array[randId] = tmp;
+				}
+				return array;
+			}
+
+			function setClass(id, className, remove = false) {
+				const el = document.getElementById(id);
+				if (el) {
+					if (remove) el.classList.remove(className);
+					else el.classList.add(className);
+				}
+			}
+
+			function startTimer() {
+				clearInterval(timerInterval);
+				elapsedSeconds = 0;
+				updateTimerUI();
+				timerInterval = setInterval(() => {
+					elapsedSeconds++;
+					updateTimerUI();
+				}, 1000);
+			}
+
+			function stopTimer() {
+				clearInterval(timerInterval);
+			}
+
+			function updateTimerUI() {
+				const mins = String(Math.floor(elapsedSeconds / 60)).padStart(2, '0');
+				const secs = String(elapsedSeconds % 60).padStart(2, '0');
+				const timeStr = `${mins}:${secs}`;
+
+				const endTimerEl = document.getElementById('end-time');
+				const hudTimerEl = document.getElementById('hud-time');
+
+				if (endTimerEl) endTimerEl.textContent = timeStr;
+				if (hudTimerEl) hudTimerEl.textContent = timeStr;
+			}
+
+			function showMenu() {
+				stopTimer();
+				setClass('end-screen', 'hidden');
+				setClass('end-screen', 'fade-enter-active', true);
+				setClass('end-screen', 'fade-exit');
+
+				setClass('main-menu', 'hidden', true);
+				setClass('main-menu', 'fade-exit', true);
+				setClass('main-menu', 'fade-enter-active');
+
+				setClass('game-ui', 'flex', true);
+				setClass('game-ui', 'hidden');
+				document.getElementById('map-controls').classList.add('hidden');
+
+				clearMapOverlays();
+				clearStudyMarkers();
+
+				const btnReview = document.getElementById('btn-review');
+				const reviewDesc = document.getElementById('review-desc');
+				const reviewBtnEl = btnReview.querySelector('.inline-block');
+
+				if (previousMistakes.length > 0) {
+					btnReview.disabled = false;
+					btnReview.classList.remove('opacity-50', 'cursor-not-allowed');
+					btnReview.classList.add('border-orange-500/50');
+					reviewDesc.textContent = `Masz ${previousMistakes.length} obiektów, które sprawiły problem. Czas je utrwalić.`;
+					reviewDesc.classList.add('text-orange-200');
+					reviewBtnEl.textContent = 'Powtórz';
+					reviewBtnEl.className =
+						'inline-block bg-orange-600 text-white font-bold uppercase tracking-wider text-xs px-4 py-2 rounded-lg group-hover:bg-orange-500 transition-colors shadow-lg shadow-orange-600/30';
+				} else {
+					btnReview.disabled = true;
+					btnReview.classList.add('opacity-50', 'cursor-not-allowed');
+					btnReview.classList.remove('border-orange-500/50');
+					reviewDesc.textContent = `Rozwiąż test, aby odblokować możliwość powtórzenia błędnie zaznaczonych krain.`;
+					reviewDesc.classList.remove('text-orange-200');
+					reviewBtnEl.textContent = 'Niedostępne';
+					reviewBtnEl.className =
+						'inline-block bg-slate-800 text-slate-400 font-bold uppercase tracking-wider text-xs px-4 py-2 rounded-lg transition-colors';
+				}
+			}
+
+			function startGame(mode) {
+				currentMode = mode;
+				score = 0;
+				currentIndex = 0;
+				mistakesList = [];
+				clearMapOverlays();
+				clearStudyMarkers();
+				stopTimer();
+				elapsedSeconds = 0;
+				updateTimerUI();
+
+				const modeBadge = document.getElementById('mode-badge');
+
+				if (mode === 'study') {
+					document.getElementById('study-filters').classList.remove('hidden');
+					document.getElementById('study-filters').classList.add('flex');
+					document.getElementById('stats-panel').classList.add('hidden');
+					document.getElementById('prompt-container').classList.add('hidden');
+					modeBadge.textContent = 'TRYB NAUKI';
+
+					document
+						.querySelectorAll('#study-filters input')
+						.forEach((input) => (input.checked = true));
+					visibleCategories = { nizina: true, wyzyna: true, gory: true };
+
+					renderStudyMarkers();
+				} else {
+					document.getElementById('study-filters').classList.add('hidden');
+					document.getElementById('study-filters').classList.remove('flex');
+					document.getElementById('stats-panel').classList.remove('hidden');
+					document
+						.getElementById('prompt-container')
+						.classList.remove('hidden');
+
+					if (mode === 'test') {
+						queue = shuffleArray([...ALL_LOCATIONS]);
+						modeBadge.textContent = 'WYZWANIE';
+					} else if (mode === 'review') {
+						queue = shuffleArray([...previousMistakes]);
+						modeBadge.textContent = 'POWTÓRKA';
+					}
+				}
+
+				setClass('main-menu', 'fade-enter-active', true);
+				setClass('main-menu', 'fade-exit');
+				setTimeout(() => setClass('main-menu', 'hidden'), 300);
+
+				setTimeout(() => {
+					setClass('game-ui', 'hidden', true);
+					setClass('game-ui', 'flex');
+					document.getElementById('map-controls').classList.remove('hidden');
+				}, 300);
+
+				resetMapView();
+
+				if (mode !== 'study') {
+					updateScoreUI();
+					askQuestion();
+					startTimer();
+				}
+			}
+
+			function toggleCategory(cat) {
+				visibleCategories[cat] = !visibleCategories[cat];
+				renderStudyMarkers();
+			}
+
+			function clearStudyMarkers() {
+				studyMarkers.forEach((m) => map.removeLayer(m));
+				studyMarkers = [];
+			}
+
+			function renderStudyMarkers() {
+				clearStudyMarkers();
+				if (currentMode !== 'study') return;
+
+				ALL_LOCATIONS.forEach((loc) => {
+					if (visibleCategories[loc.type]) {
+						const color = TYPE_COLORS[loc.type];
+
+						const polygon = L.polygon(loc.polygon, {
+							color: color,
+							weight: 2,
+							fillColor: color,
+							fillOpacity: 0.15,
+							interactive: true
+						}).addTo(map);
+
+						const dot = L.circleMarker(loc.center, {
+							color: color,
+							fillColor: color,
+							fillOpacity: 1,
+							radius: 5,
+							weight: 1,
+							interactive: true
+						}).addTo(map);
+
+						polygon.bindTooltip(loc.name, {
+							permanent: true,
+							direction: 'center',
+							className: 'study-label'
+						});
+
+						studyMarkers.push(polygon);
+						studyMarkers.push(dot);
+					}
+				});
+			}
+
+			function updateScoreUI() {
+				document.getElementById('score-text').textContent = score;
+			}
+
+			function askQuestion() {
+				if (currentIndex >= queue.length) {
+					endGame(false);
+					return;
+				}
+
+				clearMapOverlays();
+				currentAttempts = 0;
+				updateAttemptsUI();
+
+				const currentObj = queue[currentIndex];
+				const promptBox = document.getElementById('prompt-container');
+				const questionText = document.getElementById('question-text');
+
+				document.getElementById('progress-text').textContent =
+					`${currentIndex + 1}/${queue.length}`;
+
+				// Animacja wejścia pytania
+				promptBox.classList.remove('animate-pop');
+				void promptBox.offsetWidth; // trigger reflow
+				questionText.textContent = currentObj.name;
+				promptBox.classList.add('animate-pop');
+
+				isWaitingForClick = true;
+			}
+
+			function updateAttemptsUI() {
+				const dots = document.querySelectorAll('.attempt-dot');
+				dots.forEach((dot, index) => {
+					dot.className =
+						'w-6 md:w-8 h-1.5 rounded-full transition-colors duration-300 attempt-dot ';
+					if (index < currentAttempts) {
+						dot.classList.add('bg-rose-500');
+					} else {
+						dot.classList.add('bg-slate-700');
+					}
+				});
+			}
+
+			function showFeedbackOverlay(text, isCorrect) {
+				const overlay = document.getElementById('feedback-overlay');
+				const textEl = document.getElementById('feedback-text');
+				overlay.classList.remove('hidden');
+
+				textEl.textContent = text;
+				textEl.className = `text-6xl md:text-9xl font-black uppercase italic tracking-tighter drop-shadow-[0_10px_10px_rgba(0,0,0,0.8)] transform scale-50 opacity-0 transition-all duration-300 ${isCorrect ? 'text-emerald-400' : 'text-rose-500'}`;
+
+				// Trigger reflow
+				void textEl.offsetWidth;
+
+				textEl.classList.remove('scale-50', 'opacity-0');
+				textEl.classList.add('scale-100', 'opacity-100');
+
+				setTimeout(() => {
+					textEl.classList.remove('scale-100', 'opacity-100');
+					textEl.classList.add('scale-150', 'opacity-0');
+					setTimeout(() => overlay.classList.add('hidden'), 300);
+				}, 1200);
+			}
+
+			function handleMapClick(e) {
+				if (!isWaitingForClick) return;
+
+				const targetObj = queue[currentIndex];
+				const clickPoint = [e.latlng.lat, e.latlng.lng];
+
+				const isCorrect = isPointInPolygon(clickPoint, targetObj.polygon);
+
+				if (isCorrect) {
+					handleCorrectAnswer(targetObj);
+				} else {
+					handleWrongAnswer(targetObj, e.latlng);
+				}
+			}
+
+			function drawShape(polygonPoints, color, isFill = false) {
+				const shape = L.polygon(polygonPoints, {
+					color: color,
+					weight: 2,
+					fillColor: color,
+					fillOpacity: isFill ? 0.2 : 0.0,
+					interactive: false
+				}).addTo(map);
+				activeShapes.push(shape);
+				return shape;
+			}
+
+			function drawMissDot(latLng) {
+				const dot = L.circleMarker(latLng, {
+					color: '#e11d48', // rose-600
+					fillColor: '#f43f5e',
+					fillOpacity: 0.8,
+					radius: 4,
+					weight: 2,
+					interactive: false
+				}).addTo(map);
+				activeShapes.push(dot);
+			}
+
+			function handleCorrectAnswer(targetObj) {
+				isWaitingForClick = false;
+
+				if (currentAttempts === 0) {
+					score++;
+				}
+				updateScoreUI();
+
+				const color = COLORS[currentAttempts] || COLORS[2];
+				drawShape(targetObj.polygon, color, true);
+
+				map.panTo(targetObj.center, { animate: true, duration: 0.5 });
+
+				showFeedbackOverlay(currentAttempts === 0 ? 'DOBRZE!' : 'OK!', true);
+
+				setTimeout(() => {
+					currentIndex++;
+					askQuestion();
+				}, 1500);
+			}
+
+			function handleWrongAnswer(targetObj, clickLatLng) {
+				currentAttempts++;
+				updateAttemptsUI();
+				drawMissDot(clickLatLng);
+
+				if (currentAttempts >= 3) {
+					isWaitingForClick = false;
+
+					if (!mistakesList.some((m) => m.id === targetObj.id)) {
+						mistakesList.push(targetObj);
+					}
+
+					showFeedbackOverlay('ŹLE!', false);
+
+					drawShape(targetObj.polygon, COLORS[2], true);
+
+					const correctDot = L.circleMarker(targetObj.center, {
+						color: COLORS[2],
+						fillColor: COLORS[2],
+						fillOpacity: 1,
+						radius: 6,
+						weight: 2,
+						interactive: false
+					}).addTo(map);
+					activeShapes.push(correctDot);
+
+					const label = L.tooltip({
+						permanent: true,
+						direction: 'center',
+						className: 'study-label'
+					})
+						.setLatLng(targetObj.center)
+						.setContent(targetObj.name)
+						.addTo(map);
+					activeShapes.push(label);
+
+					map.panTo(targetObj.center, { animate: true, duration: 0.5 });
+
+					setTimeout(() => {
+						currentIndex++;
+						askQuestion();
+					}, 3000);
+				}
+			}
+
+			function clearMapOverlays() {
+				activeShapes.forEach((shape) => map.removeLayer(shape));
+				activeShapes = [];
+			}
+
+			function endGame(forced = false) {
+				isWaitingForClick = false;
+				stopTimer();
+
+				setClass('game-ui', 'flex', true);
+				setClass('game-ui', 'hidden');
+				document.getElementById('map-controls').classList.add('hidden');
+
+				if (forced || currentMode === 'study') {
+					setTimeout(showMenu, 300);
+					return;
+				}
+
+				setTimeout(() => {
+					const endScreen = document.getElementById('end-screen');
+					endScreen.classList.remove('hidden');
+
+					setTimeout(() => {
+						endScreen.classList.remove('fade-exit');
+						endScreen.classList.add('fade-enter-active');
+					}, 50);
+
+					const scoreEl = document.getElementById('end-score');
+					const percentageEl = document.getElementById('end-percentage');
+					const btnReview = document.getElementById('end-btn-review');
+					const mistakesSection = document.getElementById('mistakes-section');
+					const mistakesListEl = document.getElementById('mistakes-list');
+
+					const percentage = Math.round((score / queue.length) * 100);
+					scoreEl.innerHTML = `${score}<span class="text-2xl text-slate-500">/${queue.length}</span>`;
+					percentageEl.textContent = `${percentage}%`;
+
+					if (percentage >= 90)
+						percentageEl.className =
+							'text-6xl font-black text-emerald-400 tracking-tighter';
+					else if (percentage >= 50)
+						percentageEl.className =
+							'text-6xl font-black text-orange-400 tracking-tighter';
+					else
+						percentageEl.className =
+							'text-6xl font-black text-rose-500 tracking-tighter';
+
+					if (currentMode === 'test' || currentMode === 'review') {
+						// W trybie powtórki aktualizujemy listę z poprzednimi błędami (zostawiamy te, które znów poszły źle)
+						previousMistakes = [...mistakesList];
+					}
+
+					if (previousMistakes.length > 0) {
+						btnReview.classList.remove('hidden');
+						mistakesSection.classList.remove('hidden');
+
+						mistakesListEl.innerHTML = '';
+						previousMistakes.forEach((mistake) => {
+							const li = document.createElement('li');
+							li.className = 'flex items-center gap-2';
+							li.innerHTML = `<div class="w-1.5 h-1.5 rounded-full bg-rose-500"></div> ${mistake.name}`;
+							mistakesListEl.appendChild(li);
+						});
+					} else {
+						btnReview.classList.add('hidden');
+						mistakesSection.classList.add('hidden');
+						document.getElementById('end-title').textContent = 'PERFEKCYJNIE!';
+					}
+				}, 300);
+			}
+		</script>
+	</body>
+</html>
