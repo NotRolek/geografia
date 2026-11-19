@@ -128,16 +128,19 @@
 
 			/* Etykiety na mapie */
 			.study-label {
-				background: #0f172a;
+				background: rgba(15, 23, 42, 0.92);
 				border: 1px solid #334155;
 				color: #f8fafc;
 				font-weight: 800;
 				border-radius: 4px;
-				padding: 2px 6px;
-				font-size: 11px;
+				padding: 1px 5px;
+				font-size: 10px;
+				line-height: 1.2;
 				text-transform: uppercase;
-				letter-spacing: 0.05em;
-				box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5);
+				letter-spacing: 0.04em;
+				white-space: nowrap;
+				box-shadow: 0 3px 6px rgba(0, 0, 0, 0.55);
+				pointer-events: none;
 			}
 
 			.fade-enter {
@@ -691,684 +694,426 @@
 		</div>
 
 		<script>
-			// Dane obiektów geograficznych
-			const ALL_LOCATIONS = [
+			// Proporcje mapy 4:3 dla obrazu mapa_azji.png
+			const MAP_WIDTH = 1000;
+			const MAP_HEIGHT = 750;
+			const MAP_BOUNDS = [
+				[0, 0],
+				[MAP_HEIGHT, MAP_WIDTH]
+			];
+
+			// Konwersja współrzędnych względnych obrazu [x, y] (0..1 od lewego górnego rogu)
+			// na układ CRS.Simple Leafleta [lat, lng] (od lewego dolnego rogu)
+			function relToMap([x, y]) {
+				return [(1 - y) * MAP_HEIGHT, x * MAP_WIDTH];
+			}
+
+			// Wszystkie 23 obiekty zapisane w znormalizowanych współrzędnych obrazu [x, y] w zakresie 0..1
+			// Skalibrowane bezpośrednio do rzeźby terenu na obrazie mapa_azji.png (MERIDIAN)
+			const RAW_LOCATIONS = [
 				{
 					id: 1,
 					name: 'Nizina Zachodniosyberyjska',
-					center: [62.0, 76.0],
 					type: 'nizina',
-					desc: 'Ogromna, płaska nizina w Rosji.',
+					desc: 'Ogromna, płaska nizina w Rosji między Uralem a Jenisejem.',
+					center: [0.425, 0.285],
+					labelPos: [0.432, 0.285],
 					polygon: [
-						[73, 68],
-						[72.5, 72],
-						[73, 75],
-						[72.8, 80],
-						[71, 83],
-						[69, 85],
-						[68, 86],
-						[66, 88],
-						[63, 90],
-						[60, 90],
-						[58, 88],
-						[56, 85],
-						[54, 83],
-						[53, 80],
-						[52.5, 77],
-						[53, 72],
-						[54, 68],
-						[55, 65],
-						[56.5, 62],
-						[58, 61],
-						[60, 60.5],
-						[62, 60],
-						[64, 60.5],
-						[66, 61],
-						[68, 63],
-						[70, 65],
-						[71.5, 67]
+						[0.392, 0.198],
+						[0.435, 0.2],
+						[0.478, 0.225],
+						[0.492, 0.265],
+						[0.488, 0.315],
+						[0.478, 0.355],
+						[0.44, 0.368],
+						[0.395, 0.365],
+						[0.362, 0.345],
+						[0.362, 0.295],
+						[0.375, 0.245]
 					]
 				},
 				{
 					id: 2,
 					name: 'Nizina Turańska',
-					center: [43.0, 60.0],
 					type: 'nizina',
-					desc: 'Rozległa nizina w Azji Środkowej, obejmuje pustynie.',
+					desc: 'Rozległa nizina w Azji Środkowej wokół Jeziora Aralskiego.',
+					center: [0.382, 0.432],
+					labelPos: [0.382, 0.432],
 					polygon: [
-						[46.5, 52],
-						[47, 54],
-						[47.5, 57],
-						[47, 61],
-						[46.5, 63],
-						[46, 65],
-						[45, 67],
-						[44, 68],
-						[43, 69],
-						[42, 69],
-						[41, 68.5],
-						[40, 68],
-						[39, 66],
-						[38.5, 64],
-						[37.5, 62],
-						[37, 60],
-						[37.5, 57],
-						[38, 55],
-						[39, 54],
-						[40, 54],
-						[41.5, 53.5],
-						[43, 53],
-						[44, 52.5],
-						[45, 52]
+						[0.34, 0.4],
+						[0.38, 0.392],
+						[0.422, 0.412],
+						[0.42, 0.445],
+						[0.398, 0.47],
+						[0.358, 0.472],
+						[0.338, 0.45]
 					]
 				},
 				{
 					id: 3,
 					name: 'Kaukaz',
-					center: [42.5, 45.0],
 					type: 'gory',
-					desc: 'Łańcuch górski między Morzem Czarnym a Kaspijskim.',
+					desc: 'Łańcuch górski między Morzem Czarnym a Morzem Kaspijskim.',
+					center: [0.276, 0.385],
+					labelPos: [0.262, 0.382],
 					polygon: [
-						[44.8, 37.5],
-						[44.5, 38.2],
-						[44.2, 39],
-						[43.8, 40.5],
-						[43.3, 41.5],
-						[42.9, 42.5],
-						[42.5, 43.5],
-						[42.1, 44.8],
-						[41.7, 46],
-						[41.3, 47.2],
-						[41, 48],
-						[40.6, 49],
-						[40.2, 49.5],
-						[40.5, 48.8],
-						[40.8, 48],
-						[41.2, 46.5],
-						[41.5, 45],
-						[41.8, 44],
-						[42.2, 43],
-						[42.6, 41.5],
-						[43, 40],
-						[43.4, 39],
-						[43.8, 38],
-						[44.1, 37.5],
-						[44.3, 37]
+						[0.252, 0.364],
+						[0.278, 0.378],
+						[0.305, 0.398],
+						[0.299, 0.409],
+						[0.272, 0.39],
+						[0.246, 0.374]
 					]
 				},
 				{
 					id: 4,
 					name: 'Taurus',
-					center: [37.0, 33.0],
 					type: 'gory',
-					desc: 'Pasma górskie w południowej Turcji.',
+					desc: 'Pasma górskie wzdłuż południowego wybrzeża Turcji.',
+					center: [0.215, 0.414],
+					labelPos: [0.205, 0.422],
 					polygon: [
-						[37.2, 27],
-						[37.3, 28.5],
-						[37.5, 30],
-						[37.4, 31.5],
-						[37.2, 33],
-						[37.3, 34.5],
-						[37.5, 36],
-						[37.8, 37],
-						[38, 38],
-						[37.6, 38.3],
-						[37.2, 38.2],
-						[36.9, 37.5],
-						[36.7, 36],
-						[36.5, 34.5],
-						[36.2, 33],
-						[36.3, 31.5],
-						[36.5, 30],
-						[36.5, 28.5],
-						[36.6, 27],
-						[36.9, 26.8]
+						[0.186, 0.4],
+						[0.215, 0.408],
+						[0.248, 0.416],
+						[0.246, 0.428],
+						[0.212, 0.421],
+						[0.184, 0.413]
 					]
 				},
 				{
 					id: 5,
 					name: 'Nizina Mezopotamska',
-					center: [32.0, 46.0],
 					type: 'nizina',
-					desc: 'Nizina w dolinach rzek Eufrat i Tygrys.',
+					desc: 'Nizina w dolinach rzek Eufrat i Tygrys, uchodzących do Zatoki Perskiej.',
+					center: [0.254, 0.474],
+					labelPos: [0.238, 0.482],
 					polygon: [
-						[34, 43],
-						[34.5, 43.5],
-						[35, 44],
-						[34, 45],
-						[33, 46],
-						[32, 46.8],
-						[31, 47.5],
-						[30.5, 48.2],
-						[30, 48.5],
-						[29.8, 48.3],
-						[29.5, 48],
-						[29.7, 47.5],
-						[30, 47],
-						[30.5, 46],
-						[31, 45],
-						[31.8, 44],
-						[32.5, 43],
-						[33, 42.6],
-						[33.5, 42.5],
-						[33.8, 42.7]
+						[0.238, 0.438],
+						[0.255, 0.452],
+						[0.276, 0.488],
+						[0.274, 0.508],
+						[0.26, 0.505],
+						[0.242, 0.472],
+						[0.228, 0.448]
 					]
 				},
 				{
 					id: 6,
 					name: 'Wyżyna Irańska',
-					center: [33.0, 54.0],
 					type: 'wyzyna',
-					desc: 'Rozległa wyżyna w Azji Południowo-Zachodniej.',
+					desc: 'Rozległa wyżyna w Azji Południowo-Zachodniej (Iran, Afganistan, zach. Pakistan).',
+					center: [0.325, 0.512],
+					labelPos: [0.325, 0.512],
 					polygon: [
-						[37, 50],
-						[37.5, 52],
-						[38, 55],
-						[37.8, 58],
-						[37, 60],
-						[36, 61.5],
-						[35, 62],
-						[33.5, 63],
-						[32, 64],
-						[30, 63.5],
-						[28, 62],
-						[27, 60.5],
-						[26, 59],
-						[26.5, 57],
-						[27, 55],
-						[28, 53.5],
-						[29, 52],
-						[30.5, 51],
-						[32, 50],
-						[34, 49.5],
-						[35, 49],
-						[36, 49.5]
+						[0.27, 0.445],
+						[0.308, 0.45],
+						[0.35, 0.475],
+						[0.382, 0.495],
+						[0.372, 0.545],
+						[0.355, 0.572],
+						[0.315, 0.558],
+						[0.285, 0.518],
+						[0.265, 0.475]
 					]
 				},
 				{
 					id: 7,
 					name: 'Nizina Nadkaspijska',
-					center: [47.0, 50.0],
 					type: 'nizina',
-					desc: 'Rozległa depresja wokół północnych wybrzeży Morza Kaspijskiego.',
+					desc: 'Rozległa depresja u północnych wybrzeży Morza Kaspijskiego.',
+					center: [0.315, 0.362],
+					labelPos: [0.315, 0.35],
 					polygon: [
-						[47, 46],
-						[47.8, 46.2],
-						[48.5, 46.5],
-						[49.2, 47.2],
-						[50, 48],
-						[50.6, 49.5],
-						[51, 51],
-						[50.8, 52.5],
-						[50, 54],
-						[48.5, 54.8],
-						[47, 55],
-						[46, 54.8],
-						[45, 54],
-						[44.5, 52.5],
-						[44, 51],
-						[44.5, 49.5],
-						[45, 48],
-						[45.8, 47.2],
-						[46, 47],
-						[46.5, 46.3]
+						[0.29, 0.35],
+						[0.318, 0.342],
+						[0.342, 0.355],
+						[0.345, 0.38],
+						[0.32, 0.382],
+						[0.295, 0.38],
+						[0.285, 0.365]
 					]
 				},
 				{
 					id: 8,
 					name: 'Wyżyna Dekan',
-					center: [17.0, 77.0],
 					type: 'wyzyna',
-					desc: 'Wyżyna zajmująca większą część Półwyspu Indyjskiego.',
+					desc: 'Wyżyna zajmująca wnętrze Półwyspu Indyjskiego między Ghatami.',
+					center: [0.416, 0.662],
+					labelPos: [0.416, 0.658],
 					polygon: [
-						[21, 74],
-						[21.5, 76],
-						[22, 78],
-						[21.5, 79],
-						[20, 80],
-						[18.5, 79.8],
-						[17, 79],
-						[15, 78.5],
-						[13, 78],
-						[11.5, 77.5],
-						[10.5, 77],
-						[11.5, 76.5],
-						[13, 76],
-						[15, 75.5],
-						[17, 75],
-						[19, 74],
-						[20, 73.8]
+						[0.395, 0.622],
+						[0.448, 0.622],
+						[0.435, 0.665],
+						[0.415, 0.705],
+						[0.405, 0.728],
+						[0.396, 0.695],
+						[0.392, 0.655]
 					]
 				},
 				{
 					id: 9,
 					name: 'Nizina Indusu',
-					center: [27.0, 68.0],
 					type: 'nizina',
-					desc: 'Nizina aluwialna położona wokół rzeki Indus.',
+					desc: 'Nizina aluwialna położona w dolinie rzeki Indus w Pakistanie.',
+					center: [0.388, 0.558],
+					labelPos: [0.375, 0.562],
 					polygon: [
-						[33, 71],
-						[33.5, 72],
-						[34, 73],
-						[32.5, 73.5],
-						[31, 74],
-						[30, 73.5],
-						[29, 72],
-						[27.5, 70.5],
-						[26, 69],
-						[25, 68],
-						[24, 67],
-						[23.5, 67.5],
-						[24, 68.5],
-						[25, 69.5],
-						[26, 70.5],
-						[27.5, 72],
-						[29, 73.5],
-						[30.5, 74],
-						[32, 74.5]
+						[0.395, 0.515],
+						[0.412, 0.525],
+						[0.402, 0.562],
+						[0.382, 0.598],
+						[0.364, 0.595],
+						[0.376, 0.558],
+						[0.385, 0.525]
 					]
 				},
 				{
 					id: 10,
 					name: 'Nizina Gangesu',
-					center: [26.0, 82.0],
 					type: 'nizina',
 					desc: 'Gęsto zaludniona, żyzna nizina w północnych Indiach i Bangladeszu.',
+					center: [0.468, 0.602],
+					labelPos: [0.475, 0.612],
 					polygon: [
-						[30, 77],
-						[30.2, 78],
-						[30.5, 79],
-						[29.5, 80.5],
-						[28, 82],
-						[27, 84],
-						[26, 86],
-						[26, 87.5],
-						[26, 89],
-						[25, 89.8],
-						[24, 90],
-						[23, 90.5],
-						[22, 90.5],
-						[22, 89.8],
-						[22, 89],
-						[23, 88.5],
-						[24, 88],
-						[24.5, 86],
-						[25, 84],
-						[26, 82],
-						[27, 80],
-						[27.8, 78.5],
-						[28.5, 77],
-						[29.2, 76.8]
+						[0.418, 0.555],
+						[0.452, 0.578],
+						[0.495, 0.598],
+						[0.518, 0.618],
+						[0.508, 0.635],
+						[0.478, 0.618],
+						[0.442, 0.602],
+						[0.415, 0.58]
 					]
 				},
 				{
 					id: 11,
 					name: 'Wyżyna Tybetańska',
-					center: [33.0, 88.0],
 					type: 'wyzyna',
-					desc: 'Najwyżej położona i największa wyżyna na Ziemi.',
+					desc: 'Najwyżej położona wyżyna na Ziemi, między Himalajami a Kunlunem.',
+					center: [0.502, 0.538],
+					labelPos: [0.505, 0.536],
 					polygon: [
-						[36, 78],
-						[37, 80],
-						[38, 82],
-						[38.5, 85],
-						[39, 88],
-						[39.2, 91],
-						[39, 95],
-						[38, 97],
-						[36, 99],
-						[34, 98.5],
-						[32, 98],
-						[31, 96.5],
-						[30, 95],
-						[29.8, 91.5],
-						[29.5, 88],
-						[30, 85],
-						[30.5, 82],
-						[31.2, 80.5],
-						[32, 79],
-						[34, 78.2]
+						[0.444, 0.502],
+						[0.492, 0.508],
+						[0.545, 0.52],
+						[0.558, 0.548],
+						[0.538, 0.575],
+						[0.502, 0.568],
+						[0.468, 0.55],
+						[0.442, 0.525]
 					]
 				},
 				{
 					id: 12,
 					name: 'Góry Karakorum',
-					center: [35.5, 76.5],
 					type: 'gory',
-					desc: 'Niezwykle wysokie pasmo górskie, tu znajduje się szczyt K2.',
+					desc: 'Wysokie pasmo górskie ze szczytem K2 między Pamirem, Himalajami i Kunlunem.',
+					center: [0.429, 0.504],
+					labelPos: [0.418, 0.506],
 					polygon: [
-						[36.5, 74],
-						[36.2, 75],
-						[36, 76],
-						[35.8, 77],
-						[35.5, 78],
-						[35, 78.5],
-						[34.5, 79],
-						[34.2, 78.5],
-						[34, 78],
-						[34.2, 77],
-						[34.5, 76],
-						[35, 74.8],
-						[35.5, 73.5],
-						[36, 73.2]
+						[0.418, 0.492],
+						[0.444, 0.505],
+						[0.44, 0.515],
+						[0.414, 0.502]
 					]
 				},
 				{
 					id: 13,
 					name: 'Ałtaj',
-					center: [49.0, 89.0],
 					type: 'gory',
-					desc: 'System górski na styku Rosji, Chin, Mongolii i Kazachstanu.',
+					desc: 'System górski na styku Rosji, Kazachstanu, Chin i Mongolii.',
+					center: [0.511, 0.408],
+					labelPos: [0.512, 0.402],
 					polygon: [
-						[52, 82],
-						[52.5, 83.5],
-						[53, 85],
-						[52.2, 87],
-						[51, 89],
-						[50, 91],
-						[48, 93],
-						[47, 92.2],
-						[46, 91],
-						[46.5, 89.5],
-						[47, 88],
-						[48, 86.5],
-						[49, 85],
-						[49.5, 83.5],
-						[50, 82],
-						[51, 81.5]
+						[0.482, 0.378],
+						[0.515, 0.4],
+						[0.548, 0.428],
+						[0.54, 0.438],
+						[0.506, 0.412],
+						[0.474, 0.39]
 					]
 				},
 				{
 					id: 14,
 					name: 'Kunlun',
-					center: [36.0, 84.0],
 					type: 'gory',
-					desc: 'Potężny łańcuch górski odgradzający Wyżynę Tybetańską od północy.',
+					desc: 'Łańcuch górski ograniczający Wyżynę Tybetańską od północy.',
+					center: [0.495, 0.502],
+					labelPos: [0.5, 0.49],
 					polygon: [
-						[38, 76],
-						[38.5, 78],
-						[39, 80],
-						[39.2, 83],
-						[39, 86],
-						[38.5, 89],
-						[38, 92],
-						[37, 95],
-						[36, 98],
-						[35, 97.5],
-						[34, 97],
-						[34.5, 94.5],
-						[35, 92],
-						[36, 90],
-						[36.5, 87],
-						[36, 84],
-						[35.5, 81],
-						[35, 78],
-						[35.5, 76.5],
-						[36, 75],
-						[37, 75.2]
+						[0.446, 0.486],
+						[0.495, 0.494],
+						[0.545, 0.508],
+						[0.543, 0.52],
+						[0.493, 0.506],
+						[0.444, 0.498]
 					]
 				},
 				{
 					id: 15,
 					name: 'Góry Czerskiego',
-					center: [65.0, 143.0],
 					type: 'gory',
-					desc: 'Góry we wschodniej Syberii.',
+					desc: 'Pasmo górskie w północno-wschodniej Syberii.',
+					center: [0.682, 0.282],
+					labelPos: [0.682, 0.282],
 					polygon: [
-						[68, 133],
-						[67.5, 136],
-						[66, 140],
-						[65, 143.5],
-						[64, 147],
-						[63.5, 149],
-						[63, 151],
-						[62.5, 150.2],
-						[62, 149],
-						[62.5, 147],
-						[63, 145],
-						[64, 141],
-						[65, 137],
-						[66, 134.5],
-						[67, 132],
-						[67.6, 131.8]
+						[0.658, 0.245],
+						[0.688, 0.275],
+						[0.715, 0.312],
+						[0.704, 0.322],
+						[0.675, 0.286],
+						[0.648, 0.256]
 					]
 				},
 				{
 					id: 16,
 					name: 'Ghaty Wschodnie',
-					center: [17.0, 81.5],
 					type: 'gory',
 					desc: 'Pasma górskie wzdłuż wschodniego wybrzeża Półwyspu Indyjskiego.',
+					center: [0.435, 0.678],
+					labelPos: [0.462, 0.692],
 					polygon: [
-						[21, 86],
-						[20.5, 85],
-						[19.5, 84],
-						[18, 83],
-						[16.5, 81.5],
-						[15, 80],
-						[13.8, 79],
-						[12.5, 78],
-						[12.8, 77.5],
-						[13.5, 79.5],
-						[14.8, 80.5],
-						[16, 81],
-						[17.5, 82.5],
-						[19, 84],
-						[20.5, 87],
-						[21.2, 87.2]
+						[0.464, 0.63],
+						[0.445, 0.665],
+						[0.422, 0.708],
+						[0.412, 0.73],
+						[0.406, 0.725],
+						[0.416, 0.702],
+						[0.437, 0.66],
+						[0.456, 0.626]
 					]
 				},
 				{
 					id: 17,
 					name: 'Ghaty Zachodnie',
-					center: [14.0, 74.5],
 					type: 'gory',
-					desc: 'Góry ciągnące się wzdłuż zachodniego wybrzeża Indii.',
+					desc: 'Pasmo górskie wzdłuż zachodniego wybrzeża Indii.',
+					center: [0.391, 0.685],
+					labelPos: [0.354, 0.692],
 					polygon: [
-						[21, 73.5],
-						[19.5, 73.2],
-						[18, 73],
-						[16, 73.8],
-						[14, 74.5],
-						[12, 75.8],
-						[10, 77],
-						[9, 77.2],
-						[8, 77.5],
-						[8.5, 76.8],
-						[10, 76],
-						[12, 75],
-						[14, 73.5],
-						[16, 73],
-						[18, 72.5],
-						[19.5, 72.3],
-						[20.5, 72.5]
+						[0.38, 0.625],
+						[0.388, 0.625],
+						[0.392, 0.668],
+						[0.398, 0.71],
+						[0.404, 0.742],
+						[0.396, 0.745],
+						[0.39, 0.71],
+						[0.383, 0.668]
 					]
 				},
 				{
 					id: 18,
 					name: 'Pamir',
-					center: [38.0, 73.0],
 					type: 'gory',
-					desc: 'Wysoki węzeł orograficzny (tzw. Dach Świata) w Azji Centralnej.',
+					desc: 'Wysoki węzeł górski na wschód od Hindukuszu i na zachód od Karakorum.',
+					center: [0.41, 0.479],
+					labelPos: [0.395, 0.468],
 					polygon: [
-						[40, 71],
-						[40, 72],
-						[39.5, 73],
-						[39, 74],
-						[38.5, 75],
-						[37.8, 74.8],
-						[37, 74.5],
-						[36.5, 73],
-						[36.8, 72],
-						[37, 71],
-						[37.8, 70.8],
-						[38.5, 70.5],
-						[39.2, 70.6]
+						[0.4, 0.468],
+						[0.422, 0.47],
+						[0.42, 0.49],
+						[0.398, 0.488]
 					]
 				},
 				{
 					id: 19,
 					name: 'Góry Annamickie',
-					center: [16.0, 107.5],
 					type: 'gory',
-					desc: 'Góry na Półwyspie Indochińskim (Wietnam, Laos).',
+					desc: 'Pasmo górskie na Półwyspie Indochińskim (Wietnam, Laos).',
+					center: [0.612, 0.688],
+					labelPos: [0.635, 0.688],
 					polygon: [
-						[19, 105],
-						[18.2, 105.8],
-						[17, 106.5],
-						[16, 107],
-						[14.5, 107.8],
-						[13, 108.5],
-						[12, 108.8],
-						[11.5, 108],
-						[12.2, 107.8],
-						[13, 107.5],
-						[14.5, 106.8],
-						[16, 106],
-						[17.2, 105.3],
-						[18, 104.5],
-						[18.6, 104.2]
+						[0.594, 0.652],
+						[0.618, 0.682],
+						[0.638, 0.722],
+						[0.628, 0.73],
+						[0.608, 0.69],
+						[0.586, 0.66]
 					]
 				},
 				{
 					id: 20,
 					name: 'Wyżyna Środkowosyberyjska',
-					center: [65.0, 105.0],
 					type: 'wyzyna',
-					desc: 'Rozległa, pofałdowana wyżyna w azjatyckiej części Rosji.',
+					desc: 'Rozległa wyżyna między Jenisejem a Leną w azjatyckiej części Rosji.',
+					center: [0.558, 0.302],
+					labelPos: [0.558, 0.302],
 					polygon: [
-						[72, 88],
-						[72.5, 95],
-						[72, 105],
-						[71.5, 110],
-						[70, 115],
-						[67.5, 116.5],
-						[65, 118],
-						[62.5, 116.5],
-						[60, 115],
-						[58, 110],
-						[56, 105],
-						[57, 100],
-						[58, 95],
-						[60, 92],
-						[62, 90],
-						[65, 89],
-						[68, 88],
-						[70, 87.5]
+						[0.502, 0.242],
+						[0.558, 0.242],
+						[0.612, 0.268],
+						[0.622, 0.312],
+						[0.598, 0.352],
+						[0.552, 0.362],
+						[0.508, 0.348],
+						[0.495, 0.295]
 					]
 				},
 				{
 					id: 21,
 					name: 'Ural',
-					center: [60.0, 60.0],
 					type: 'gory',
-					desc: 'Góry stanowiące tradycyjną granicę między Europą a Azją.',
+					desc: 'Pasmo górskie stanowiące umowną granicę między Europą a Azją.',
+					center: [0.364, 0.265],
+					labelPos: [0.348, 0.265],
 					polygon: [
-						[68.5, 66],
-						[67.8, 65.5],
-						[67, 65],
-						[66, 63.5],
-						[65, 62],
-						[64, 61],
-						[63, 60],
-						[61.5, 59.5],
-						[60, 59],
-						[58.5, 58.5],
-						[57, 58],
-						[55.5, 57.8],
-						[54, 58],
-						[52.8, 57.6],
-						[51.5, 57.5],
-						[51.5, 59.5],
-						[52.8, 59.8],
-						[54, 60],
-						[55.5, 60.3],
-						[57, 60.5],
-						[58.5, 60.8],
-						[60, 61],
-						[61.5, 61.8],
-						[63, 62.5],
-						[64, 63.8],
-						[65, 65],
-						[66, 66.5],
-						[67, 67.5],
-						[68.5, 68],
-						[69, 67]
+						[0.384, 0.175],
+						[0.394, 0.178],
+						[0.376, 0.235],
+						[0.362, 0.295],
+						[0.352, 0.348],
+						[0.34, 0.348],
+						[0.35, 0.292],
+						[0.364, 0.232]
 					]
 				},
 				{
 					id: 22,
 					name: 'Himalaje',
-					center: [28.2, 84.5],
 					type: 'gory',
-					desc: 'Najwyższy łańcuch górski na Ziemi (Mount Everest).',
+					desc: 'Najwyższy łańcuch górski na Ziemi u południowej krawędzi Wyżyny Tybetańskiej.',
+					center: [0.478, 0.568],
+					labelPos: [0.47, 0.572],
 					polygon: [
-						[34.5, 74],
-						[33.5, 75.5],
-						[32.5, 77],
-						[31.8, 78],
-						[31, 79],
-						[30.2, 80.2],
-						[29.5, 81.5],
-						[29, 82.8],
-						[28.5, 84],
-						[28.2, 85],
-						[27.8, 86],
-						[27.6, 87.5],
-						[27.5, 89],
-						[27.4, 90.5],
-						[27.5, 92],
-						[28, 93.5],
-						[28.5, 95],
-						[29, 95.8],
-						[29.5, 96],
-						[29, 96.5],
-						[28.5, 96.5],
-						[27.8, 95.5],
-						[27.5, 94],
-						[27, 92.5],
-						[26.5, 91],
-						[26.3, 89.5],
-						[26.5, 88],
-						[26.8, 86.5],
-						[27, 85],
-						[27.5, 83.5],
-						[28, 82],
-						[29, 80.5],
-						[30, 79],
-						[31, 77.5],
-						[32, 76],
-						[33, 75.2],
-						[33.8, 74.5],
-						[34.8, 73.8]
+						[0.422, 0.514],
+						[0.448, 0.538],
+						[0.482, 0.562],
+						[0.515, 0.574],
+						[0.538, 0.578],
+						[0.535, 0.592],
+						[0.508, 0.588],
+						[0.474, 0.575],
+						[0.44, 0.55],
+						[0.415, 0.525]
 					]
 				},
 				{
 					id: 23,
 					name: 'Wyżyna Mongolska',
-					center: [45.0, 105.0],
 					type: 'wyzyna',
-					desc: 'Rozległa wyżyna zajmująca znaczne obszary Mongolii i Chin.',
+					desc: 'Rozległa wyżyna obejmująca Mongolię i północne Chiny.',
+					center: [0.595, 0.438],
+					labelPos: [0.595, 0.438],
 					polygon: [
-						[49, 90],
-						[49.5, 95],
-						[50, 100],
-						[49.8, 106],
-						[49, 112],
-						[48, 114],
-						[47, 116],
-						[45, 115.5],
-						[43, 115],
-						[41.5, 112.5],
-						[40, 110],
-						[39.5, 105],
-						[40, 100],
-						[41.5, 95],
-						[43, 90],
-						[46, 89.5]
+						[0.538, 0.4],
+						[0.595, 0.398],
+						[0.648, 0.418],
+						[0.652, 0.455],
+						[0.618, 0.478],
+						[0.565, 0.472],
+						[0.532, 0.445]
 					]
 				}
 			];
+
+			// Przeliczenie współrzędnych względnych (0..1) na układ CRS.Simple Leafleta
+			const ALL_LOCATIONS = RAW_LOCATIONS.map((loc) => ({
+				...loc,
+				center: relToMap(loc.center),
+				labelPos: relToMap(loc.labelPos),
+				polygon: loc.polygon.map(relToMap)
+			}));
 
 			// Zmienne stanu gry
 			let map;
@@ -1408,37 +1153,31 @@
 
 			function initMap() {
 				map = L.map('map', {
-					center: [45, 90],
-					zoom: 3,
-					minZoom: 2,
-					maxZoom: 10,
-					maxBounds: [
-						[-20, 20],
-						[90, 180]
-					],
-					maxBoundsViscosity: 1.0,
-					zoomControl: false
+					crs: L.CRS.Simple,
+					minZoom: -1,
+					maxZoom: 3,
+					zoomSnap: 0.25,
+					zoomControl: false,
+					attributionControl: false
 				});
 
 				L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-				L.tileLayer(
-					'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-					{
-						attribution:
-							'Tiles &copy; <a href="https://www.esri.com/">Esri</a>',
-						maxZoom: 17
-					}
-				).addTo(map);
+				L.imageOverlay('mapa_azji.png', MAP_BOUNDS).addTo(map);
+				map.setMaxBounds([
+					[-120, -150],
+					[MAP_HEIGHT + 120, MAP_WIDTH + 150]
+				]);
+				map.fitBounds(MAP_BOUNDS);
 
 				map.on('click', handleMapClick);
 			}
 
 			function resetMapView() {
-				map.setView([45, 90], 3, { animate: true, duration: 1 });
+				map.fitBounds(MAP_BOUNDS, { animate: true, duration: 0.8 });
 			}
 
-			// Ray-casting
+			// Ray-casting dla współrzędnych [y, x]
 			function isPointInPolygon(point, vs) {
 				let x = point[1],
 					y = point[0];
@@ -1538,7 +1277,6 @@
 				stopTimer();
 				moveMapToRoot();
 
-				// Bezpieczne ukrywanie ekranu końcowego i paska kontroli
 				const endScreen = document.getElementById('end-screen');
 				const inspectControls = document.getElementById('inspect-controls');
 				if (endScreen) {
@@ -1677,31 +1415,31 @@
 					if (visibleCategories[loc.type]) {
 						const color = TYPE_COLORS[loc.type];
 
+						// Cienki obrys i delikatne wypełnienie obszaru (bez zbędnych czerwonych kropek)
 						const polygon = L.polygon(loc.polygon, {
 							color: color,
-							weight: 2,
+							weight: 1.5,
 							fillColor: color,
-							fillOpacity: 0.15,
+							fillOpacity: 0.14,
 							interactive: true
 						}).addTo(map);
 
-						const dot = L.circleMarker(loc.center, {
-							color: color,
-							fillColor: color,
-							fillOpacity: 1,
-							radius: 5,
-							weight: 1,
-							interactive: true
-						}).addTo(map);
+						polygon.bindPopup(
+							`<div style="font-family: Outfit, sans-serif; color: #0f172a;"><strong>${loc.name}</strong><br/><span style="font-size: 12px;">${loc.desc}</span></div>`
+						);
 
-						polygon.bindTooltip(loc.name, {
+						// Niezależna etykieta ustawiona w labelPos, aby nazwy nie nachodziły na siebie
+						const label = L.tooltip({
 							permanent: true,
 							direction: 'center',
 							className: 'study-label'
-						});
+						})
+							.setLatLng(loc.labelPos)
+							.setContent(loc.name)
+							.addTo(map);
 
 						studyMarkers.push(polygon);
-						studyMarkers.push(dot);
+						studyMarkers.push(label);
 					}
 				});
 			}
@@ -1711,7 +1449,6 @@
 			}
 
 			function askQuestion() {
-				// Główny warunek zakończenia gry
 				if (currentIndex >= queue.length) {
 					endGame(false);
 					return;
@@ -1728,7 +1465,6 @@
 				document.getElementById('progress-text').textContent =
 					`${currentIndex + 1}/${queue.length}`;
 
-				// Ultra płynne przejście
 				questionText.style.opacity = '0';
 				setTimeout(() => {
 					questionText.textContent = currentObj.name;
@@ -1778,9 +1514,9 @@
 			) {
 				const shape = L.polygon(polygonPoints, {
 					color: color,
-					weight: 2,
+					weight: 1.8,
 					fillColor: color,
-					fillOpacity: isFill ? 0.2 : 0.0,
+					fillOpacity: isFill ? 0.18 : 0.0,
 					interactive: false
 				}).addTo(map);
 				targetArray.push(shape);
@@ -1820,8 +1556,8 @@
 					color: color,
 					fillColor: color,
 					fillOpacity: 1,
-					radius: 6,
-					weight: 2,
+					radius: 5,
+					weight: 1.5,
 					interactive: false
 				}).addTo(map);
 				permanentShapes.push(dot);
@@ -1831,7 +1567,7 @@
 					direction: 'center',
 					className: 'study-label'
 				})
-					.setLatLng(targetObj.center)
+					.setLatLng(targetObj.labelPos)
 					.setContent(targetObj.name)
 					.addTo(map);
 				permanentShapes.push(label);
@@ -1872,8 +1608,8 @@
 						color: COLORS[2],
 						fillColor: COLORS[2],
 						fillOpacity: 1,
-						radius: 6,
-						weight: 2,
+						radius: 5,
+						weight: 1.5,
 						interactive: false
 					}).addTo(map);
 					permanentShapes.push(correctDot);
@@ -1883,7 +1619,7 @@
 						direction: 'center',
 						className: 'study-label'
 					})
-						.setLatLng(targetObj.center)
+						.setLatLng(targetObj.labelPos)
 						.setContent(targetObj.name)
 						.addTo(map);
 					permanentShapes.push(label);
@@ -1923,7 +1659,6 @@
 				isWaitingForClick = false;
 				stopTimer();
 
-				// Ukrywanie elementów interfejsu (HUD)
 				setClass('game-ui', 'flex', true);
 				setClass('game-ui', 'hidden');
 				document.getElementById('map-controls').classList.add('hidden');
@@ -1933,21 +1668,18 @@
 					return;
 				}
 
-				// Bezpieczne, synchroniczne wyświetlanie End Screen jako Popup
 				const endScreen = document.getElementById('end-screen');
 				if (endScreen) {
 					endScreen.classList.remove('hidden');
 					endScreen.classList.add('flex');
 				}
 
-				// Ukrycie paska analizy (na wypadek gdyby został po re-play)
 				const inspectControls = document.getElementById('inspect-controls');
 				if (inspectControls) {
 					inspectControls.classList.add('hidden');
 					inspectControls.classList.remove('flex');
 				}
 
-				// Generowanie podsumowania i wyników
 				try {
 					const totalQuestions = queue.length;
 					const percentage = Math.round((score / totalQuestions) * 100) || 0;
@@ -1997,7 +1729,6 @@
 						}
 					}
 
-					// Generowanie Listy Obiektów
 					const listContainer = document.getElementById('end-list');
 					if (listContainer) {
 						listContainer.innerHTML = '';
@@ -2041,7 +1772,6 @@
 						});
 					}
 
-					// Centrowanie mapy w tle pod popupem
 					if (permanentShapes.length > 0) {
 						const validShapesForBounds = permanentShapes.filter(
 							(shape) =>
