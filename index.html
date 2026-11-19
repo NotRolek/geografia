@@ -56,7 +56,7 @@
 				-webkit-user-select: none;
 			}
 
-			#map {
+			#map-root {
 				position: fixed;
 				top: 0;
 				left: 0;
@@ -64,7 +64,14 @@
 				height: 100vh;
 				z-index: 1;
 				background-color: #121212;
+			}
+
+			#map {
+				width: 100%;
+				height: 100%;
+				background-color: #121212;
 				cursor: crosshair;
+				z-index: 1;
 			}
 
 			/* Nowoczesne kontrolki Leafleta ala GeoGuessr */
@@ -202,24 +209,6 @@
 			}
 			.animate-shake {
 				animation: shake 0.3s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
-			}
-
-			#map-root {
-				position: fixed;
-				top: 0;
-				left: 0;
-				width: 100vw;
-				height: 100vh;
-				z-index: 1;
-				background-color: #121212;
-			}
-
-			#map {
-				width: 100%;
-				height: 100%;
-				background-color: #121212;
-				cursor: crosshair;
-				z-index: 1;
 			}
 		</style>
 	</head>
@@ -1142,9 +1131,9 @@
 			};
 
 			const COLORS = {
-				0: '#10b981', // emerald
-				1: '#f59e0b', // amber
-				2: '#e11d48' // rose
+				0: '#10b981', // emerald (1. próba)
+				1: '#f59e0b', // amber (2. próba)
+				2: '#e11d48' // rose (3. próba / błąd)
 			};
 
 			window.onload = function () {
@@ -1193,6 +1182,57 @@
 					if (intersect) inside = !inside;
 				}
 				return inside;
+			}
+
+			// Najkrótsza odległość punktu [y, x] od odcinka AB w układzie mapy
+			function distancePointToSegment(p, a, b) {
+				const px = p[1],
+					py = p[0];
+				const ax = a[1],
+					ay = a[0];
+				const bx = b[1],
+					by = b[0];
+				const dx = bx - ax;
+				const dy = by - ay;
+				const lenSq = dx * dx + dy * dy;
+
+				if (lenSq === 0) return Math.hypot(px - ax, py - ay);
+
+				const t = Math.max(
+					0,
+					Math.min(1, ((px - ax) * dx + (py - ay) * dy) / lenSq)
+				);
+				return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
+			}
+
+			// Minimalna odległość punktu kliknięcia od krawędzi wielokąta
+			function distanceToPolygon(point, polygon) {
+				let minDist = Infinity;
+				for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+					const dist = distancePointToSegment(point, polygon[j], polygon[i]);
+					if (dist < minDist) minDist = dist;
+				}
+				return minDist;
+			}
+
+			// Sprawdzanie trafienia: wnętrze wielokąta LUB bufor tolerancji przy krawędzi
+			function isHitTarget(clickPoint, targetObj) {
+				if (isPointInPolygon(clickPoint, targetObj.polygon)) {
+					return true;
+				}
+
+				const scale = Math.pow(2, map.getZoom());
+				const isMountain = targetObj.type === 'gory';
+				const pixelTolerance = isMountain ? 16 : 12;
+				const baseTolerance = isMountain ? 16 : 10;
+				const maxTolerance = isMountain ? 24 : 16;
+
+				const tolerance = Math.min(
+					maxTolerance,
+					Math.max(baseTolerance, pixelTolerance / scale)
+				);
+
+				return distanceToPolygon(clickPoint, targetObj.polygon) <= tolerance;
 			}
 
 			function shuffleArray(array) {
@@ -1346,6 +1386,17 @@
 				elapsedSeconds = 0;
 				updateTimerUI();
 
+				const endScreen = document.getElementById('end-screen');
+				const inspectControls = document.getElementById('inspect-controls');
+				if (endScreen) {
+					endScreen.classList.add('hidden');
+					endScreen.classList.remove('flex');
+				}
+				if (inspectControls) {
+					inspectControls.classList.add('hidden');
+					inspectControls.classList.remove('flex');
+				}
+
 				const modeBadge = document.getElementById('mode-badge');
 
 				if (mode === 'study') {
@@ -1415,7 +1466,6 @@
 					if (visibleCategories[loc.type]) {
 						const color = TYPE_COLORS[loc.type];
 
-						// Cienki obrys i delikatne wypełnienie obszaru (bez zbędnych czerwonych kropek)
 						const polygon = L.polygon(loc.polygon, {
 							color: color,
 							weight: 1.5,
@@ -1425,10 +1475,13 @@
 						}).addTo(map);
 
 						polygon.bindPopup(
-							`<div style="font-family: Outfit, sans-serif; color: #0f172a;"><strong>${loc.name}</strong><br/><span style="font-size: 12px;">${loc.desc}</span></div>`
+							`<div style="font-family: Outfit, sans-serif; min-width: 140px;">
+								<strong style="font-size: 13px; color: #0f172a;">${loc.name}</strong>
+								<p style="margin: 4px 0 0; font-size: 12px; color: #334155;">${loc.desc}</p>
+							</div>`
 						);
 
-						// Niezależna etykieta ustawiona w labelPos, aby nazwy nie nachodziły na siebie
+						// Niezależna pozycja etykiety, aby nazwy na siebie nie nachodziły
 						const label = L.tooltip({
 							permanent: true,
 							direction: 'center',
@@ -1497,7 +1550,7 @@
 				const targetObj = queue[currentIndex];
 				const clickPoint = [e.latlng.lat, e.latlng.lng];
 
-				const isCorrect = isPointInPolygon(clickPoint, targetObj.polygon);
+				const isCorrect = isHitTarget(clickPoint, targetObj);
 
 				if (isCorrect) {
 					handleCorrectAnswer(targetObj);
@@ -1514,9 +1567,9 @@
 			) {
 				const shape = L.polygon(polygonPoints, {
 					color: color,
-					weight: 1.8,
+					weight: 2,
 					fillColor: color,
-					fillOpacity: isFill ? 0.18 : 0.0,
+					fillOpacity: isFill ? 0.2 : 0.0,
 					interactive: false
 				}).addTo(map);
 				targetArray.push(shape);
@@ -1557,7 +1610,7 @@
 					fillColor: color,
 					fillOpacity: 1,
 					radius: 5,
-					weight: 1.5,
+					weight: 2,
 					interactive: false
 				}).addTo(map);
 				permanentShapes.push(dot);
@@ -1609,7 +1662,7 @@
 						fillColor: COLORS[2],
 						fillOpacity: 1,
 						radius: 5,
-						weight: 1.5,
+						weight: 2,
 						interactive: false
 					}).addTo(map);
 					permanentShapes.push(correctDot);
